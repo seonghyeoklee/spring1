@@ -24,4 +24,14 @@ public class OrderServiceImpl implements OrderService{
 
         return new Order(memberId, itemName, itemPrice, discountPrice);
     }
+
+    //singleton 테스트용
+    public MemberRepository getMemberRepository() {
+        return memberRepository;
+    }
+
+    //singleton 테스트용
+    public DiscountPolicy getDiscountPolicy() {
+        return discountPolicy;
+    }
 }
