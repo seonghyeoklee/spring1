@@ -667,3 +667,339 @@ public class ApplicationContextExtendsFindTest {
 > **학습에 도움이 되었던 자료**
 >
 > - [김영한 - 스프링 핵심 원리(인프런)](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B8%B0%EB%B3%B8%ED%8E%B8#)
+
+> [이전 글 - 스프링 기초와 원리를 알아보자🌳](https://velog.io/@shlee327/%EC%8A%A4%ED%94%84%EB%A7%81-%EA%B8%B0%EC%B4%88%EC%99%80-%EC%9B%90%EB%A6%AC%EB%A5%BC-%EC%95%8C%EC%95%84%EB%B3%B4%EC%9E%90) 에서 작성된 예제코드를 기반으로 내용을 작성되었습니다.
+
+## 오늘의 주제는?
+
+- 스프링은 태생이 기업용 온라인 서비스 기술을 지원하기 위해 탄생했다. 대부분의 스프링 애플리케이션은 웹 애플리케이션이고, 웹 애플리케이션은 보통 여러 고객이 동시에 요청을 한다.
+- 현재 코드는 초당 1,000번의 요청이 들어오면 1,000개의 객체를 생성하여 사용하게 된다. 즉, 요청이 있을때마다 같은 객체를 새로 만들고 있다는 뜻이다.
+- 우리는 메모리의 낭비없이 개발을 하고싶다. 싱글톤을 이용하여 효율적인 코드를 만들어보자.
+- 다음 코드를 통하여 확인해보자.
+
+```java
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public MemberService memberService() {
+        return new MemberServiceImpl(new MemoryMemberRepository());
+    }
+}
+```
+
+```java
+public class SingletonTest {
+
+    @Test
+    @DisplayName("스프링 없는 순수한 DI 컨테이너")
+    void pureContainer() {
+        AppConfig appConfig = new AppConfig();
+
+        //요청이 들어올떄마다 객체를 생성
+        MemberService memberService1 = appConfig.memberService();
+        MemberService memberService2 = appConfig.memberService();
+
+        //참조값이 다른 것을 확인
+        System.out.println("memberService1 = " + memberService1);
+        System.out.println("memberService2 = " + memberService2);
+
+        assertThat(memberService1).isNotSameAs(memberService2);
+    }
+}
+```
+
+#### 그래서 결과가 뭐야?
+
+![](https://images.velog.io/images/shlee327/post/366d3a0f-563b-453b-b29d-c9699b7e1d85/core_%E2%80%93_README_md__core_.png)
+
+- `memberService1`, `memberService2`는 같은 구현객체이다. 만약 요청이 들어올때마다 객체를 생성하게 된다면 이처럼 같은 구현객체들이 계속 추가될 것이다.
+- 테스트 결과를 주목해보자. `@43e4ca52`, `@137782a7` 은 생성된 객체가 참조하고 있는 주소값이다. 값이 다르다. 이 뜻은 똑같은 구현객체이지만 서로 다른 곳을 참조하고 있다는 것이다.
+- 즉, 불필요한 메모리가 낭비된다는 뜻이다.
+- 이것을 해결하기 위하여 1개의 구현객체만 생성하고 공유하여 사용하도록 만들 것이다. 다른 말로 우리는 **싱글톤 패턴**에 대하여 알아볼 것이다.
+
+## 싱글톤 패턴
+
+![](https://upload.wikimedia.org/wikipedia/commons/f/fb/Singleton_UML_class_diagram.svg)
+
+- 참고 - [싱글톤 패턴(위키백과)](https://ko.wikipedia.org/wiki/%EC%8B%B1%EA%B8%80%ED%84%B4_%ED%8C%A8%ED%84%B4)
+- 싱글톤 패턴(Singleton pattern)을 따르는 클래스는, 생성자가 여러 차례 호출되더라도 실제로 생성되는 객체는 하나이고 최초 생성 이후에 호출된 생성자는 최초의 생성자가 생성한 객체를 리턴한다.
+- 싱글톤 패턴을 생성하는 코드를 살펴보자.
+
+```java
+public class SingletonService {
+
+    //1. static 영역에 객체를 딱 1개만 생성해둔다.
+    private static final SingletonService instance = new SingletonService();
+
+    //2. public 으로 열어서 객체 인스터스가 필요하면 이 static 메서드를 통해서만 조회하도록 허용한다.
+    public static SingletonService getInstance() {
+        return instance;
+    }
+
+    //3. 생성자를 private 으로 선언해서 외부에서 new 키워드를 사용한 객체 생성을 못하게 막는다.
+    private SingletonService() {
+    }
+}
+```
+
+- static 영역에 객체를 딱 1개만 생성해둔다.
+- 싱글톤 패턴은 private 생성자를 사용해서 외부에서 임의로 new 키워드를 사용하지 못하도록 막아야 한다.(중요)
+- static 영역에 객체(instance)를 생성하고, 만약 필요하다면 getInstance() 메소드를 통해서만 접근이 가능하다.
+- 테스트를 해보자.
+
+```java
+public class SingletonTest {
+
+    @Test
+    @DisplayName("싱글톤 패턴을 적용한 객체 사용")
+    void singletonServiceTest() {
+        SingletonService instance1 = SingletonService.getInstance();
+        SingletonService instance2 = SingletonService.getInstance();
+
+        System.out.println("instance1 = " + instance1);
+        System.out.println("instance2 = " + instance2);
+
+        assertThat(instance1).isSameAs(instance2);
+    }
+
+}
+```
+
+- 실행결과
+  ![](https://images.velog.io/images/shlee327/post/4b3e7819-8fe2-4fa1-a686-416ff4e45f17/core_%E2%80%93_SingletonTest_java__core_test_.png)
+
+- 실행결과 같은 참조값(@9f8ea4d)을 가지고 있는 객체만 리턴되었다.
+- 싱글톤 패턴을 적용하면 요청이 올 때 마다 객체를 생성하는 것이 아니라, 이미 만들어진 객체를 공유해서 효율적으로 사용할 수 있다. 하지만 싱글톤 패턴은 다음과 같은 수 많은 문제점들을 가지고 있다.
+
+#### 문제점
+
+- 싱글톤 패턴을 구현하는 코드 자체가 많이 들어간다.
+- 의존관계상 클라이언트가 구체 클래스에 의존한다.(DIP를 위반)
+- 클라이언트가 구체 클래스에 의존해서 OCP 원칙을 위반할 가능성이 높다.
+- 싱글톤은 만들어지는 방식이 제한적이기 때문에 테스트에서 사용될 때 mock 오브젝트 등으로 대체하기가 힘들다.
+- 서버 환경에서는 싱글톤이 하나만 만들어지는 것을 보장하지 못한다. 여러개의 JVM에 분산돼서 설치가 되는 경우에도 각각 독립적으로 오브젝트가 생기기 때문에 싱글톤으로서의 가치가 떨어진다.
+- 참고 - [싱글톤 패턴의 단점(https://ssoco.tistory.com/65)](https://ssoco.tistory.com/65)
+
+> 하지만 우리는 싱글톤 문제에 대한 고민을 할 필요가 없다. 우리가 학습한 스프링 빈이 바로 싱글톤으로 관리되는 빈이다.
+
+## 싱글톤 컨테이너
+
+- 스프링 컨테이너는 싱글턴 패턴을 적용하지 않아도, 객체 인스턴스를 싱글톤으로 관리한다.
+- 스프링 컨테이너는 싱글톤 컨테이너 역할을 한다. 이렇게 싱글톤 객체를 생성하고 관리하는 기능을 싱글톤 레지스트리라 한다.
+- 스프링 컨테이너의 이런 기능 덕분에 싱글턴 패턴의 모든 단점을 해결하면서 객체를 싱글톤으로 유지할 수 있다.
+  - 싱글톤 패턴을 위한 코드가 들어가지 않아도 된
+  - DIP, OCP, 테스트, private 생성자로 부터 자유롭게 싱글톤을 사용할 수 있다.
+
+> 스프링 컨테이너 덕분에 요청이 올 때 마다 객체를 생성하는 것이 아니라, 이미 만들어진 객체를 공유 해서 효율적으로 재사용할 수 있다.
+
+```java
+public class SingletonTest {
+
+    @Test
+    @DisplayName("스프링 컨테이너와 싱글톤")
+    void springContainer() {
+
+        //스프링 컨테이너에서 빈 조회하도록 수정
+        ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+
+        MemberService memberService1 = ac.getBean("memberService", MemberService.class);
+        MemberService memberService2 = ac.getBean("memberService", MemberService.class);
+
+        //참조값이 같은 것을 확인
+        System.out.println("memberService1 = " + memberService1);
+        System.out.println("memberService2 = " + memberService2);
+
+        assertThat(memberService1).isSameAs(memberService2);
+    }
+
+}
+```
+
+- 실행결과
+  ![](https://images.velog.io/images/shlee327/post/255ef035-6932-42dc-ad8e-b70061c006ee/core_%E2%80%93_README_md__core_-2.png)
+
+- 기존의 스프링 컨테이너에서 생성된 빈을 조회해보면, 여러 객체를 생성하고 주입해도 같은 객체가 주입되는 것을 확인할 수 있다.
+- 이번 테스트 코드를 이용하여 스프링 컨테이너가 싱글톤 컨테이너 역할을 하는지 직접 확인할 수 있었다.
+- 하지만 싱글톤 방식을 사용할 때는 주의해야할 사항이 존재한다.
+
+## 싱글톤 방식의 주의점
+
+- 객체 인스턴스를 하나만 생성해서 공유하는 싱글톤 방식은 여러 클라이언트가 하나의 같은 객체 인스턴스를 공유하기 때문에 싱글톤 객체는 상태를 `유지(stateful)`하게 설계하면 안된다.
+- `무상태(stateless)`로 설계해야 한다. 즉, 값을 유지하거나 변경해야하는 필드가 있으면 안된다.
+- 쉬운 예시로 A 고객이 주문을 하고, B 고객이 주문을 하게되면 주문내역이 뒤바뀔 수 있다.
+- A, B 고객이 같은 객체를 공유하기 때문에 상태값을 변경하는 필드가 존재한다면 상태가 공유되는 문제가 발생한다.
+- 코드로 살펴보자.
+
+```java
+public class StatefulService {
+
+    private int price;
+
+    public void order(String name, int price) {
+        System.out.println("name = " + name + " price = " + price);
+
+        this.price = price;
+    }
+
+    public int getPrice() {
+        return price;
+    }
+}
+```
+
+- 임시로 주문(order) 서비스를 만들었다.
+- 이곳에서 price 필드는 상태를 유지하도록 설계되어 있다.
+  - `this.price = price;`
+- 따라서 가격(price)은 공유되고 있다.
+- 이제 테스트를 해보자.
+
+```java
+public class StatefulServiceTest {
+
+    @Test
+    @DisplayName("상태를 유지하는 싱글톤 방식의 문제점")
+    void statefulServiceSingleton() {
+        ApplicationContext ac = new AnnotationConfigApplicationContext(TestConfig.class);
+        StatefulService statefulService1 = ac.getBean("statefulService", StatefulService.class);
+        StatefulService statefulService2 = ac.getBean("statefulService", StatefulService.class);
+
+        //ThreadA : A 사용자가 10000원 주문
+        statefulService1.order("userA", 10000);
+
+        //ThreadB : B 사용자가 20000원 주문
+        statefulService2.order("userB", 20000);
+
+        //ThreadA : A 사용자가 주문 금액 조회
+        int price1 = statefulService1.getPrice();
+        System.out.println("price1 = " + price1);
+
+        assertThat(price1).isEqualTo(20000);
+    }
+
+    //테스트를 위한 임시 설정
+    static class TestConfig {
+
+        @Bean
+        public StatefulService statefulService() {
+            return new StatefulService();
+        }
+
+    }
+
+}
+```
+
+- 테스트를 위한 `TestConfig`를 생성하고 `@Bean` 태그로 `ApplicationContext`에 등록하였다.
+- 이제 스프링 컨테이너는 `StatefulService`를 싱글톤 객체로 관리한다.
+  > ![](https://images.velog.io/images/shlee327/post/dabb175c-a6f8-4e1a-b90b-fb4fe22d736f/core_%E2%80%93_StatefulServiceTest_java__core_test_.png)
+- 스프링 컨테이너에서 조회한 `StatefulService`는 같은 객체이다. 따로 생성하였지만 같은 참조값을 통하여 `price` 필드에 접근한다.
+- A 사용자가 10,000원 주문하고 B 사용자가 20,000원 주문을 주문하였을 때, A 사용자의 주문 금액을 조회하면 20,000원이 나오는 아주 위험한(?) 결과가 나온다.
+  > ![](https://images.velog.io/images/shlee327/post/7c8d1959-b436-423c-9787-9bc939982660/core_%E2%80%93_README_md__core_-3.png)
+- 필드가 공유되기 때문에 가격이 바뀐 것이다. 따라서 스프링 빈은 항상 무상태(stateless)로 설계해야 한다.
+
+## @Configuration과 싱글톤
+
+- 우리는 계속 스프링 컨테이너가 싱글톤 패턴을 유지하며 객체를 관리하는지 여부를 알아보고 있다.
+- 그렇다면 다음과 같은 상황에서 궁금함이 생길 수 있다.
+
+> ![](https://images.velog.io/images/shlee327/post/1487c3dc-ea1b-4bed-bac3-b68e0543c85a/core_%E2%80%93_AppConfig_java__core_main_.png)
+>
+> - 이 코드는 스프링 빈을 등록하는 `@Configuration` 이다.
+> - 여기서 `memberRepository()` 메소드는 2번 호출되고 있다. `memberService`, `orderService` 빈을 등록할 때 각각 호출이 되면서 `new MemoryMemberRepository()` 코드를 통해서 같은 객체를 2번 만들 것이라고 생각하게 된다. 과연 사실일까?
+> - 스프링 컨테이너는 빈을 싱글톤으로 관리한다고 했는데... 빈을 등록할 때 같은 객체를 2번 호출해서 만들게 되면 싱글톤이 아닌거 아니야? 라고 생각해 볼 수 있다.
+
+- 이 궁금증도 테스트 코드를 통해 알아볼 수 있다.
+
+```java
+public class ConfigurationSingletonTest {
+
+    @Test
+    @DisplayName("스프링 빈 등록 시 중복여부 확인")
+    void configurationTest() {
+
+        //스프링 컨테이너 조회
+        ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+        MemberServiceImpl memberService = ac.getBean("memberService", MemberServiceImpl.class);
+        OrderServiceImpl orderService = ac.getBean("orderService", OrderServiceImpl.class);
+
+        MemberRepository memberRepository1 = memberService.getMemberRepository();
+        MemberRepository memberRepository2 = orderService.getMemberRepository();
+        MemberRepository memberRepository = ac.getBean("memberRepository", MemberRepository.class);
+
+        System.out.println("memberService -> memberRepository = " + memberRepository1);
+        System.out.println("orderService -> memberRepository = " + memberRepository2);
+        System.out.println("memberRepository -> memberRepository = " + memberRepository);
+
+        assertThat(memberService.getMemberRepository()).isSameAs(memberRepository);
+        assertThat(orderService.getMemberRepository()).isSameAs(memberRepository);
+    }
+}
+```
+
+#### 결과를 예상해보자
+
+- 위에 살펴본 `AppConfig` 에서 컨테이너에 빈을 등록할 때 호출되는 `new MemoryMemberRepository()`는 총 3번이다.
+  - memberService -> AppConfig.memberRepository
+  - orderService -> AppConfig.memberRepository
+  - memberRepository -> AppConfig.memberRepository
+- 3번 호출되면서 `MemoryMemberRepository` 객체를 3개를 만들 것이다. 그렇다면 모두 다른 객체가 생성되어야 할 것이다. 예상이 맞을까?
+
+#### 실행결과
+
+> ![](https://images.velog.io/images/shlee327/post/38ac7df4-a802-4099-acce-b07e80e77196/core_%E2%80%93_ConfigurationSingletonTest_java__core_test_.png)
+
+- `@7824e97e` 참조값이 모두 똑같다. 스프링 빈을 등록하면서 3개의 참조값이 다를 것이라 예상했지만 테스트 결과는 모두 같은 객체, 즉 싱글톤으로 관리되고 있음을 확인했다.
+- 이런 결과가 가능한 것은 스프링 컨테이너에서 직접 빈을 등록하고 관리하기 때문에 가능한 것이다.
+- 마지막으로 `@Configuration`의 중요한 역할에 대하여 알아보도록 하겠다.
+
+## @Configuration
+
+- 이전 테스트에서 우리는 객체를 생성하는 자바코드를 3번 호출했다. 하지만 스프링은 3개의 다른 객체가 아닌 모두 같은 객체를 되돌려주었다.
+- 싱글톤을 보장하는 스프링 컨테이너가 빈을 등록할 때 바이트코드를 조작하여 임의의 클래스를 생성하고 등록하기 때문이다.
+- 이해하기 어려웠지만 내용을 정리해보도록 하겠다.
+
+```java
+public class ConfigurationSingletonTest {
+
+    @Test
+    @DisplayName("스프링 빈 클래스 확인")
+    void configurationDeepTest() {
+
+      //스프링 컨테이너 조회
+      ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+      AppConfig bean = ac.getBean(AppConfig.class);
+
+      System.out.println("bean = " + bean.getClass());
+
+    }
+
+}
+```
+
+- 코드를 살펴보면 스프링 컨테이너에 등록된 `bean`을 조회하고 클래스명을 출력하는 코드이다.
+- `AppConfig`는 `@Configuration` 으로 등록된 클래스이다.
+
+#### 실행결과
+
+> ![](https://images.velog.io/images/shlee327/post/b2f31a61-f975-43ac-87b7-4a1ba577ff03/core_%E2%80%93_ConfigurationSingletonTest_java__core_test_-2.png)
+
+- `bean = class hello.core.AppConfig$$EnhancerBySpringCGLIB$$573a269b`
+- 클래스 정보를 확인해보니 `$$EnhancerBySpringCGLIB$$573a269b` 이라는 이상한 내용이 추가되었다.
+- 이것은 내가 만든 클래스가 아니라 스프링이 `CGLIB` 라는 바이트코드 조작 라이브러리를 사용해서 AppConfig 클래스를 상속받은 임의의 다른 클래스를 만들고, 그 다른 클래스를 스프링 빈으로 등록한 것이다.
+- 그 임의의 다른 클래스가 바로 싱글톤이 보장되도록 해준다.
+- `@Bean`이 붙은 메서드마다 이미 스프링 빈이 존재하면 존재하는 빈을 반환하고, 스프링 빈이 없으면 생성 해서 스프링 빈으로 등록하고 반환하는 코드가 동적으로 만들어진다.
+- 그렇다면, `@Configuration` 이 없다면 어떻게 될까?
+
+> ![](https://images.velog.io/images/shlee327/post/75a9eaaf-b0b1-4b82-9c10-f717064ac039/core_%E2%80%93_README_md__core_-5.png)
+
+- `@Configuration` 을 주석처리하고 실행한 테스트 결과이다.
+- `AppConfig.memberRepository` 가 반복적으로 실행된 것을 확인할 수 있다. 객체가 3개 생성되었지만 싱글톤을 보장하지 않는다.
+- `@Configuration` 을 사용하면 스프링 빈은 싱글톤으로 보장하지만, 없다면 스프링 빈은 등록되지만 싱글톤을 보장하지 않는다.
+- 스프링 컨테이너를 등록할 때는 항상 `@Configuration`을 사용하도록 하자.
+
+> **학습에 도움이 되었던 자료**
+>
+> - [김영한 - 스프링 핵심 원리(인프런)](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B8%B0%EB%B3%B8%ED%8E%B8#)
+> - [싱글톤 패턴의 단점(https://ssoco.tistory.com/65)](https://ssoco.tistory.com/65)
+> - [싱글톤 패턴(위키백과)](https://ko.wikipedia.org/wiki/%EC%8B%B1%EA%B8%80%ED%84%B4_%ED%8C%A8%ED%84%B4)
