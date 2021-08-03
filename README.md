@@ -1,5 +1,15 @@
 > 개인적으로 어려웠던 스프링의 원리과 사용기술을 학습하기 위하여 작성한 글입니다. 많은 내용을 참고하여 내용을 정리하였습니다. **수정사항이 있다면 언제든 지적해주세요!!**
 
+### 프로젝트 정보
+  - Project: Gradle Project
+  - Spring Boot: 2.3.x
+  - Language: Java
+  - Packaging: Jar
+  - Java: 11
+  - Project Metadata
+    - groupId: hello
+    - artifactId: core
+
 ## 🔥 개요
 
 - 스프링이란? 스프링 프레임워크는 자바 진영의 웹 프레임워크이다. EJB라는 겨울을 넘어 새로운 시작이라는 뜻으로 시작된 스프링은 현재는 다양한 생태계를 구축하고 있다.
