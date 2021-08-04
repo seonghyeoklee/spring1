@@ -1122,3 +1122,148 @@ public class AutoAppConfigTest {
 > - [김영한 - 스프링 핵심 원리(인프런)](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B8%B0%EB%B3%B8%ED%8E%B8#)
 
 > [Github 이동](https://github.com/seonghyeoklee/spring1)
+
+> 개인적으로 어려웠던 스프링의 원리과 사용기술을 학습하기 위하여 작성한 글입니다. 많은 내용을 참고하여 내용을 정리하였습니다. **수정사항이 있다면 언제든 지적해주세요!!**
+
+## ✅ 의존관계 자동 주입
+
+- 스프링에서 중요한 개념이라고 할 수 있는 의존관계는 스프링 컨테이너에서 관리한다. 과연 스프링 컨테이너는 어떤 방법으로 의존관계를 관리하고 있을까?
+- 의존관계 주입은 크게 4가지 경우가 존재한다.
+    - 생성자 주입
+    - 수정자 주입(setter 주입)
+    - 필드 주입
+    - 일반 메소드 주입
+
+### 1️⃣ 생성자 주입
+
+- 생성자를 통해서 의존 관계를 주입 받는 방법이다. 이전에 작성된 글에서 사용했던 방법이 바로 이 방법이다.
+- 생성자 호출시점에 1번만 호출되는 것이 보장되며 **불변**, **필수** 의존관계에서 사용된다.
+
+> ![](https://images.velog.io/images/shlee327/post/827b6cc3-bfe1-4c30-80be-4b140c676b2f/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2021__8__4__%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_1_37.png)
+
+- 이처럼 컴포넌트 스캔에 의하여 스프링 빈이 생성되고 생성자가 호출된다.
+- 만약 생성자가 1개만 존재한다면 `@Autowired` 는 생략이 가능하다. 스프링 빈으로 등록되어 있다면 생성자를 통해서 자동으로 의존관계를 주입시켜 준다.
+
+### 2️⃣ 수정자 주입(setter 주입)
+
+- setter라 불리는 필드의 값을 변경하는 수정자 메서드를 통해서 의존관계를 주입하는 방법이다.
+- **선택**, **변경** 가능성이 있는 의존관계에 사용
+
+> ![](https://images.velog.io/images/shlee327/post/3de470f2-746a-41ec-bdbc-e02fb7420cf3/core_%E2%80%93_OrderServiceImpl_java__core_main_.png)
+
+- `@Autowired` 의 기본 동작은 주입할 대상이 없으면 오류가 발생한다. 주입할 대상이 없어도 동작하게 하려면 `@Autowired(required = false)` 로 지정하면 된다.
+
+### 3️⃣ 필드 주입
+
+- 필드에 바로 주입하는 방법이다. 코드가 간결하여 많이 사용하고 있지만 외부에서 변경이 불가능해서 테스트 하기 힘들다는 치명적인 단점이 있다.
+- 스프링에서 권장하는 방법이 아니다. 하지만 테스트 코드 작성이나 `@Configuration` 같은 곳에서만 특별한 용도로 사용한다.
+
+```java
+@Component
+public class OrderServiceImpl implements OrderService {
+    
+    @Autowired
+    private MemberRepository memberRepository;
+    
+    @Autowired
+    private DiscountPolicy discountPolicy;
+}
+```
+
+### 4️⃣ 일반 메소드 주입
+
+- 일반 메서드를 통해서 주입 받을 수 있다. 일반적으로 사용하는 방법은 아니다.
+- 한번에 여러 필드를 주입 받을 수 있다.
+
+> ![](https://images.velog.io/images/shlee327/post/39599670-29eb-49d8-8952-e3761d8a0786/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2021__8__5__%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_12_31.png)
+> - 수정자 주입(setter 주입)과 매우 유사한 형태를 보인다.
+
+## ✅ 옵션 처리
+
+- `@Autowired` 는 자동으로 주입할 대상이 없으면 오류가 발생한다. 만약 스프링 빈이 없이도 동작하게 만들어야 하는 경우 선택할 수 있는 옵션을 살펴보자.
+
+#### @Autowired(required=false)
+
+- 자동 주입할 대상이 없으면 수정자 메소드 자체가 호출 안된다.
+
+#### @Nullable
+
+- 자동 주입할 대상이 없으면 `null` 이 입력된다.
+
+#### Optional<>
+
+- 자동 주입할 대상이 없으면 `Optional.empty` 가 입력된다.
+- 테스트를 통해 결과를 확인해보자.
+
+```java
+public class AutowiredTest {
+
+    @Test
+    void AutowiredOption() {
+        ApplicationContext ac = new AnnotationConfigApplicationContext(TestBean.class);
+
+    }
+
+    static class TestBean {
+
+        @Autowired(required = false)
+        public void setNoBean1(Member noBean1) {
+            System.out.println("noBean1 = " + noBean1);
+        }
+
+        @Autowired
+        public void setNoBean2(@Nullable Member noBean2) {
+            System.out.println("noBean2 = " + noBean2);
+        }
+
+        @Autowired
+        public void setNoBean3(Optional<Member> noBean3) {
+            System.out.println("noBean3 = " + noBean3);
+        }
+    }
+}
+```
+
+- 실행결과
+
+> ![](https://images.velog.io/images/shlee327/post/73b398f9-12c8-4ab0-b50d-c7c78b444d6c/core_%E2%80%93_README_md__core_-7.png)
+ 
+- `setNoBean1` 메소드의 `@Autowired(required = false)` 옵션은 아예 호출을 하지 않는다.
+- `@Nullable` 스프링 빈이 없을 경우 null 이 입력된다.
+- 자동 주입할 대상이 없으면 `Optional.empty` 가 입력된다.
+- 앞에서 알아본 내용을 테스트를 통하여 알아보았다. 일반적으로 많이 사용해본 적이 없어 아직 어떻게 사용해야할지 정확하게 느낌이 오지 않는다.
+
+## 가장 유용한 의존관계 주입방법은?
+
+- 결과부터 말하자면 **생성자 주입**을 사용하는 것이 가장 이상적이다.
+
+#### 불변
+
+- 대부분의 의존관계 주입은 한번 일어나면 애플리케이션 종료시점까지 의존관계를 변경할 일이 없다. 오히려 대부분의 의존관계는 애플리케이션 종료 전까지 변하면 안된다.
+- 수정자 주입을 사용하면, setter 를 사용하기 때문에 변경이 가능하다.
+- 누군가 실수로 변경할 수도 있고, 변경하면 안되는 메서드를 열어두는 것은 좋은 설계 방법이 아니다.
+- 생성자 주입은 객체를 생성할 때 딱 1번만 호출되므로 이후에 호출되는 일이 없다. 따라서 불변하게 설계할 수 있다.
+
+#### 누락
+
+- 수정자 주입의 경우 객체를 생성할 때 어떤 의존관계가 있는지 알 수 없다.
+- 코드상 컴파일 오류가 발생하지 않지만 막상 실행하면 의존관계가 누락되어 예외가 발생하게 된다.
+
+> 생성자 주입을 사용하면 데이터를 누락 했을 때 컴파일 오류가 발생한다.
+
+#### final
+
+- 생성자 주입을 사용하면 필드에 `final` 키워드를 사용할 수 있다. 그래서 생성자에서 혹시라도 값이 설정되지 않는 오류를 컴파일 시점에 막아준다.
+- 수정자 주입을 포함한 나머지 주입 방식은 모두 생성자 이후에 호출되므로, 필드에 final 키워드를 사용할 수 없다. 오직 생성자 주입 방식만 final 키워드를 사용할 수 있다.
+
+## 내용정리
+
+- 생성자 주입 방식을 선택하는 이유는 여러가지가 있지만, 프레임워크에 의존하지 않고 순수한 자바 언어의 특징을 잘 살리는 방법이기도 하다.
+- 기본으로 생성자 주입을 사용하고, 필수 값이 아닌 경우에는 수정자 주입 방식을 옵션으로 부여하면 된다. 생성자 주입과 수정자 주입을 동시에 사용할 수 있다. 
+- 필드에서 주입하는 방법 대신 생성자 주입 방법을 사용하도록 하자.
+
+> **학습에 도움이 되었던 자료**
+>
+> - [김영한 - 스프링 핵심 원리(인프런)](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B8%B0%EB%B3%B8%ED%8E%B8#)
+
+> [Github 이동](https://github.com/seonghyeoklee/spring1)
